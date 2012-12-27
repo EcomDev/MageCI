@@ -58,7 +58,7 @@ Usage
 
 ### Dump databases of existing installed versions
     $ bin/mage-ci db-dump <directory> <prefix> <version1> ... <versionN> <OPTIONS>
-        Creates Magento database dump file at <directory> directory with name <file_prefix><version>.sql.gz, the data dunped database is <prefix>_<version>
+        Creates Magento database dump file at <directory> directory with name <file_prefix><version>.sql.gz, the dumped database is <prefix>_<version>
            -u  <db_user>       DB Username
            -p  <db_pass>       DB Password
            -s  <file_prefix>   sql file prefix
