@@ -16,3 +16,33 @@ In the _require_ or alternatively in the _require-dev_ section, add the followin
 
     "ecomdev/mage-ci: "dev-master"
 
+Usage
+-----
+
+### Installing a particular Magento version
+    $ bin/mage-ci install <magento_directory> <version> <db_name> <OPTIONS>
+        Installs a Magento version to a specified destination
+          -c                  Create databases flag
+          -t                  Create test database flag (only in combination with -c option)
+          -u  <db_user>       DB Username
+          -p  <db_pass>       DB Password
+          -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)
+          -f  <sql_dump_file> SQL dump file, if you'd like to preinstall some data and specfied -c option
+
+### Installing a Magento module
+    $ bin/mage-ci install-module <magento_directory> <module_dir_or_vcs_url>
+        Installs a Magento module with modman definition 
+
+### Updating installed Magento modules
+    $ bin/mage-ci update-modules <magento_directory>
+        Updates all installed modman modules at specified Magento instnace 
+
+### Uninstalling Magento version
+    $ bin/mage-ci uninstall <magento_directory> [<db_name>] <OPTIONS>
+        Performs uninstall of Magento instance
+          -u  <db_user>       DB Username
+          -p  <db_pass>       DB Password
+
+### Uninstalling Magento module
+    $ bin/mage-ci uninstall-module <magento_directory> <module_dir_or_vcs_url>
+        Performs uninstall of Magento module from instance
