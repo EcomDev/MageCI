@@ -1,0 +1,17 @@
+{
+    "name": "ecomdev/mage-ci",
+    "license": "OSL-3.0",
+    "description": "Magento Continous Integration Bash Tools",
+    "homepage": "https://github.com/EcomDev/MageCI",
+    "authors":[
+        {
+            "name": "Ivan Chepurnyi",
+            "email":"ivan.chepurnyi@ecomdev.org",
+            "homepage": "http://www.ecomdev.org",
+            "role":"Developer"
+        }
+    ],
+    "bin": [
+        "bin/mage-ci"
+    ]
+}

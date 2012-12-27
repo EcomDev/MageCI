@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+#
+# Test Framework for Magento for Integration with various test solutions
+#
+# NOTICE OF LICENSE
+#
+# This source file is subject to the Open Software License (OSL 3.0)
+# that is bundled with this package in the file LICENSE.txt.
+# It is also available through the world-wide-web at this URL:
+# http://opensource.org/licenses/osl-3.0.php
+#
+# @category   EcomDev
+# @package    EcomDev/MageCI
+# @copyright  Copyright (c) 2012 EcomDev BV (http://www.ecomdev.org)
+# @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+# @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
+
+
+script_bin=$(realpath $0)
+script=$(basename $script_bin)
+script_dir=$(dirname $script_bin)
+action=$1
+shift;
+
+show_usage () 
+{
+   echo "Usage:"
+   echo -e "\n\$ $script install <magento_directory> <version> <db_name> <OPTIONS>"
+   echo "    Installs a Magento version to a specified destination"
+   echo "      -c                  Create databases flag"
+   echo "      -t                  Create test database flag (only in combination with -c option)"
+   echo "      -u  <db_user>       DB Username"
+   echo "      -p  <db_pass>       DB Password"
+   echo "      -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)"
+   echo "      -f  <sql_dump_file> SQL dump file, if you'd like to preinstall some data and specfied -c option"
+   echo -e "\n\$ $script install-module <magento_directory> <module_dir_or_vcs_url>"
+   echo "    Installs a Magento module with modman definition "
+   echo -e "\n\$ $script update-modules <magento_directory>"
+   echo "    Updates all installed modman modules at specified Magento instnace "
+   echo -e "\n\$ $script uninstall <magento_directory> [<db_name>] <OPTIONS>"
+   echo "    Performs uninstall of Magento instance"
+   echo "      -u  <db_user>       DB Username"
+   echo "      -p  <db_pass>       DB Password"
+   echo -e "\n\$ $script uninstall-module <magento_directory> <module_dir_or_vcs_url>"
+   echo "    Performs uninstall of Magento module from instance"
+   exit 1;
+}
+
+install_magento ()
+{
+   local magento_dir=$1; local version=$2; local db_name=$3; shift 3
+   local db_create; local db_user="root"; local db_pass=""; local sql_dump_file=""; local include_test_db
+   local phpunit_local_xml; local opt; local sql_base_url; local db_cred
+   
+   while getopts :u:p:f:ct opt
+   do
+     case $opt in
+       u) db_user=$OPTARG       ;;
+       p) db_pass=$OPTARG       ;;
+       f) sql_dump_file=$OPTARG ;;
+       c) db_create=1           ;;
+       t) include_test_db=1     ;;
+       \?) echo "Unkown option -$OPTARG" >&2; exit 1 ;;
+       :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
+     esac
+   done
+
+   [[ $db_pass == "" ]] && db_cred="-u $db_user" || db_cred="-u $db_user -p$db_pass"
+   
+   if [ ! -d "$magento_dir" ]
+   then
+      echo "Creating Magento directory: $magento_dir ..."
+      mkdir -p "$magento_dir"
+   fi
+ 
+   if [[ ! $version =~ ^[0-9.]*$ ]]
+   then 
+      echo "Version should be specified: $version"
+      exit 1
+   fi 
+
+   if [ ! -n $db_name ] 
+   then 
+      echo "<db_name> is required"
+   fi
+
+   if [ -n $db_create ] 
+   then 
+      echo "Creating ${db_name} database..."
+      mysql $db_cred -e "DROP DATABASE IF EXISTS ${db_name};CREATE DATABASE ${db_name};"
+      check_error_exit
+
+      if [ -n $include_test_db ] 
+      then
+        echo "Create ${db_name}_test database..."
+        mysql $db_cred -e "DROP DATABASE IF EXISTS ${db_name}_test;CREATE DATABASE ${db_name}_test;"
+        check_error_exit
+      fi
+
+      if [[ $sql_base_url =~ ^https?\:// ]]
+      then
+        echo "Trying download SQL dump from url: $sql_base_url/$version.sql.gz"
+        wget -q --no-clobber -P $magento_dir/.tmp/ $sql_base_url/$version.sql.gz
+        if [ $? -eq 0 ]
+        then
+          echo "Dump is downloaded and will be used for installation"
+          sql_dump_file="$magento_dir/.tmp/$version.sql.gz"
+        else
+          echo "Dump is not available..."
+        fi
+      fi
+
+
+      if [ -f "${sql_dump_file}" ]
+      then 
+        echo "Loading db dump into ${db_name} database..."
+        mysql -B $db_cred $db_name < $sql_dump_file
+        check_error_exit
+        if [ -n $include_test_db ]
+          then
+            echo "Create ${db_name}_test database..."
+            mysql -B $db_cred ${db_name}_test < $sql_dump_file
+            check_error_exit
+          fi
+      fi
+   fi	
+
+   uninstall_magento $magento_dir
+
+   if [ ! -d "$magento_dir/.tmp" ]
+   then
+     mkdir $magento_dir/.tmp
+   fi
+
+   echo "Downloading Magento from URL: http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz"
+   wget -q --no-clobber -P $magento_dir/.tmp http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz
+   check_error_exit;
+   echo "Unpacking magento installment..."
+   tar -zxf $magento_dir/.tmp/magento-$version.tar.gz -C $magento_dir/.tmp
+   mv $magento_dir/.tmp/magento/* $magento_dir
+   mv $magento_dir/.tmp/magento/.ht* $magento_dir
+   rm -rf $magento_dir/.tmp/magento
+   # Special case for PHP5.4 with installation process
+   echo "Applying pdo_mysql check fix..."
+   config_file="${magento_dir}/app/code/core/Mage/Install/etc/config.xml"
+   config_file_tmp="${config_file}.tmp"
+   cp $config_file $config_file_tmp
+   sed 's/<pdo_mysql\/>/<pdo_mysql>1<\/pdo_mysql>/' $config_file_tmp > $config_file
+
+
+   echo "Installing Magento..."
+   cd $magento_dir
+   php -f install.php -- --license_agreement_accepted yes \
+  	  --locale en_US --timezone "America/Los_Angeles" --default_currency USD \
+          --db_host localhost --db_name "$db_name" --db_user "$db_user" --db_pass "$db_pass" \
+          --url "http://magento.local/" --use_rewrites yes \
+          --use_secure no --secure_base_url "http://magento.local/" --use_secure_admin no \
+          --admin_lastname Owner --admin_firstname Store --admin_email "admin@example.com" \
+          --admin_username admin --admin_password 123123test \
+          --skip_url_validation yes --encryption_key "key"
+
+   check_error_exit
+   echo "Installation sucesfully finished"
+   if [ -n $include_test_db ] 
+   then 
+     read -d '' phpunit_local_xml <<LOCALXML
+<?xml version="1.0"?>
+<config>
+    <global>
+        <resources>
+            <default_setup>
+                <connection>
+                    <dbname><![CDATA[${db_name}_test]]></dbname>
+                </connection>
+            </default_setup>
+        </resources>
+    </global>
+    <default>
+        <web>
+            <seo>
+                <use_rewrites>1</use_rewrites>
+            </seo>
+            <secure>
+                <base_url>http://magento.local/</base_url>
+            </secure>
+            <unsecure>
+                <base_url>http://magento.local/</base_url>
+            </unsecure>
+            <url>
+                <redirect_to_base>0</redirect_to_base>
+            </url>
+        </web>
+    </default>
+</config>
+LOCALXML
+     echo "Adding local.xml.phpunit..."
+     echo $phpunit_local_xml > "app/etc/local.xml.phpunit"
+     check_error_exit
+     echo "... to app/etc directory (finished)"
+   fi
+   
+   exit 0
+}
+
+install_module () {
+   local magento_dir=$1
+   local magento_module_source=$2
+   local magento_module
+   local modman="${script_dir}/modman"
+
+   init_modman $magento_dir
+
+   if [[ $magento_module_source =~ ^git@ ]]
+   then
+     magento_module=$(basename ${magento_module_source/.git//})
+     check_error_exit
+   elif [ -d "${magento_module_source}" ]
+   then
+     magento_module=$(basename ${magento_module_source})
+   else
+     echo "Unkown source type"
+     exit 1
+   fi
+
+   if [ ! -d ".modman/${magento_module}" ]
+   then
+     if [[ $magento_module_source =~ ^git@ ]]
+        then
+        echo "Installing module from git repository: $magento_module_source"
+        $modman clone $magento_module_source
+        check_error_exit
+     elif [ -d "$magento_module_source" ]
+     then
+        echo "Installing module from local directory: $magento_module_source"
+        $modman link $magento_module_source
+        check_error_exit
+     fi
+   else
+      $modman $magento_module update
+   fi
+
+   exit 0
+}
+
+init_modman () {
+   local magento_dir=$1
+   local modman="${script_dir}/modman"
+
+   if [ ! -f "$modman" ]
+   then
+     echo "Installing modman..."
+     curl -s -o "$modman" https://raw.github.com/colinmollenhour/modman/master/modman
+     check_error_exit
+     chmod +x "$modman"
+     check_error_exit
+   fi
+
+   cd $magento_dir
+   check_error_exit
+
+   if [ ! -d ".modman" ]
+   then
+     echo "Initializing modman..."
+     $modman init
+   fi
+}
+
+update_modules () {
+   local magento_dir=$1
+   local modman="${script_dir}/modman"
+
+   init_modman $magento_dir
+   $modman update-all
+   $modman deploy-all
+   echo "Modules updated"
+}
+
+uninstall_magento () {
+   local magento_dir=$1; local db_name=$2; shift 2
+   local db_user="root"; local db_pass=""; local opt;local db_cred
+
+   while getopts :u:p: opt
+   do
+     case $opt in
+       u) db_user=$OPTARG       ;;
+       p) db_pass=$OPTARG       ;;
+       \?) echo "Unkown option -$OPTARG" >&2; exit 1 ;;
+       :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
+     esac
+   done
+
+   [[ $db_pass == "" ]] && db_cred="-u $db_user" || db_cred="-u $db_user -p$db_pass"
+
+   echo "Cleaning up Magento directory..."
+   rm -rf $magento_dir/* $magento_dir/.ht*
+
+   if [[ $db_name != "" ]]
+   then
+        echo "Uninstalling database..."
+        mysql $db_cred -e "DROP DATABASE IF EXISTS ${db_name};DROP DATABASE IF EXISTS ${db_name}_test;"
+        check_error_exit
+   fi;
+
+   echo "Magento was uninstalled at: $magento_dir"
+}
+
+uninstall_module () {
+   local magento_dir=$1
+   local magento_module_source=$2
+   local magento_module
+   local modman="${script_dir}/modman"
+
+   init_modman $magento_dir
+
+   if [[ $magento_module_source =~ ^git@ ]]
+   then
+     magento_module=$(basename ${magento_module_source/.git//})
+     check_error_exit
+   elif [ -d "${magento_module_source}" ]
+   then
+     magento_module=$(basename ${magento_module_source})
+   elif [ -d ".modman/$magento_module_source" ]
+   then
+     magento_module=$magento_module_source
+   else
+     echo "Unkown source type"
+     exit 1
+   fi
+
+   if [ -d ".modman/$magento_module" ]
+   then
+      echo "Removing $magento_module module"
+      $modman remove $magento_module
+      echo "$magento_module module was removed"
+   else
+      echo "$magento_module module is already removed"
+   fi
+}
+
+check_error_exit () {
+  local errorCode=$?
+  if [ $errorCode -ne 0 ]
+  then
+    echo "Previous command returned an error exit code $errorCode"
+    exit $errorCode
+  fi
+}
+
+case $action in
+install) install_magento "$@" ;;
+install-module)  install_module "$@" ;;
+update-modules)  update_modules "$@" ;;
+uninstall-module)  uninstall_module "$@" ;;
+uninstall)  uninstall_magento "$@" ;;
+*) show_usage ;;
+esac
