@@ -1,7 +1,7 @@
 {
     "name": "ecomdev/mage-ci",
     "license": "OSL-3.0",
-    "description": "Magento Continous Integration Bash Tools",
+    "description": "Magento Continuous Integration Tools",
     "homepage": "https://github.com/EcomDev/MageCI",
     "authors":[
         {
