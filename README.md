@@ -62,3 +62,20 @@ Usage
            -u  <db_user>       DB Username
            -p  <db_pass>       DB Password
            -s  <file_prefix>   sql file prefix
+
+
+Magento Clean DB Dumps
+----------------------
+
+It is possible to specify base url for downloading of database dump for a particular Magento version.
+Most of the time clean installation of Magento takes a lot of time, so it is nice to have this clean db dump prepared for each Magento version. 
+
+We created such repository at the following url:
+http://mage-ci.ecomdev.org 
+
+You just need to specify it during installation of process:
+
+    $ bin/mage-ci install magento-1.7.0.2 1.7.0.2 mage_1.7.0.2 -r http://mage-ci.ecomdev.org 
+        
+This command will download db dump from the following URL: http://mage-ci.ecomdev.org/1.7.0.2.sql.gz
+
