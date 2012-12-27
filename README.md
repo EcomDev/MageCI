@@ -1,4 +1,4 @@
-Magento Continous Integration Tools
+Magento Continuous Integration Tools
 ===================================
 
 A set of tools to help set up 
