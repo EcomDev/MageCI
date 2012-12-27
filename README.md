@@ -46,3 +46,19 @@ Usage
 ### Uninstalling Magento module
     $ bin/mage-ci uninstall-module <magento_directory> <module_dir_or_vcs_url>
         Performs uninstall of Magento module from instance
+
+### Mass Install of Magento versions  
+    $ mage-ci install-multiple <directory> <prefix> <version1> ... <versionN> <OPTIONS>
+        Installs multiple version of magento at <directory> in subdirectories which name is a combined value of <prefix>-<version> 
+           -d  <download_dir>  Directory where all downloads are stored
+           -u  <db_user>       DB Username
+           -p  <db_pass>       DB Password
+           -t                  Create test db as well
+           -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)
+
+### Dump databases of existing installed versions
+    $ mage-ci db-dump <directory> <prefix> <version1> ... <versionN> <OPTIONS>
+        Creates Magento database dump file at <directory> directory with name <file_prefix><version>.sql.gz, the data dunped database is <prefix>_<version>
+           -u  <db_user>       DB Username
+           -p  <db_pass>       DB Password
+           -s  <file_prefix>   sql file prefix

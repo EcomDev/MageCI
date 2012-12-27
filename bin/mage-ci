@@ -57,6 +57,20 @@ ${MAGECIF[4]}$ mage-ci uninstall <magento_directory> [<db_name>] <OPTIONS>${MAGE
 
 ${MAGECIF[4]}$ mage-ci uninstall-module <magento_directory> <module_dir_or_vcs_url>${MAGECIF[0]}
     Performs uninstall of Magento module from instance
+
+${MAGECIF[4]}$ mage-ci install-multiple <directory> <prefix> <version1> ... <versionN> <OPTIONS>${MAGECIF[0]}
+    Installs multiple version of magento at <directory> in subdirectories which name is a combined value of <prefix>-<version> 
+      -d  <download_dir>  Directory where all downloads are stored
+      -u  <db_user>       DB Username
+      -p  <db_pass>       DB Password
+      -t                  Create test db as well
+      -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)
+
+${MAGECIF[4]}$ mage-ci db-dump <directory> <prefix> <version1> ... <versionN> <OPTIONS>${MAGECIF[0]}
+    Creates Magento database dump file at <directory> directory with name <file_prefix><version>.sql.gz, the data dunped database is <prefix>_<version>
+      -u  <db_user>       DB Username
+      -p  <db_pass>       DB Password
+      -s  <file_prefix>   sql file prefix
 "
 }
 
@@ -66,12 +80,118 @@ show_usage ()
    exit 1;
 }
 
+dump_magento () 
+{
+   local dest_dir=$1; local prefix=$2; shift 2; 
+   local db_name; local db_cred; local db_user="root"; local db_pass=""; 
+   local version=""; local options=""; local file_prefix=""
+
+   if [ ! -d "$dest_dir" ] 
+   then 
+      mkdir -p $dest_dir
+   fi
+
+   for arg
+   do
+     if [[ $arg =~ ^[0-9.]+$ ]]
+     then
+       version+=" $arg"
+     else
+       options+=" $arg"
+     fi
+   done
+ 
+   while getopts :u:p:f: opt $options
+   do
+     case $opt in
+       u) db_user=$OPTARG ;;
+       p) db_pass=$OPTARG ;;
+       f) file_prefix=$OPTARG ;;
+       \?) echo "${MAGECIF[3]}Unkown option -$OPTARG${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
+       :) echo "${MAGECIF[3]}Option -$OPTARG requires an argument.${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
+     esac
+   done 
+
+   db_cred="-u ${db_user}"
+
+   if [[ $db_pass != "" ]]
+   then 
+     db_cred+="-p${db_pass}"
+   fi
+
+   if [[ $prefix == "" ]] 
+   then 
+     echo "${MAGECIF[3]}<prefix> is required ${MAGECIF[0]}"
+     print_usage; exit 1;
+   fi
+
+   for ver in $version
+   do
+      db_name="${prefix}_${ver//./_}"
+      echo "${MAGECIF[2]}Dump magento database version $ver into $dest_dir/${file_prefix}${ver}.sql.gz file ${MAGECIF[0]}"
+      mysqldump $db_cred $db_name > $dest_dir/${file_prefix}${ver}.sql
+      if [ $? -ne 0 ]
+      then
+        echo "${MAGECIF[3]}Failed to dump $db_name... Skipping${MAGECIF[0]}"
+      else
+        gzip -f -9 $dest_dir/${file_prefix}${ver}.sql
+        echo "${MAGECIF[1]}Dumped...${MAGECIF[0]}"
+      fi
+   done
+}
+
+install_multiple_magento ()
+{
+   local magento_dir=$1; local pass_options="-c"; local prefix=$2; shift 2
+   local version=""; local options=""
+
+   for arg
+   do
+     if [[ $arg =~ ^[0-9.]+$ ]]
+     then
+       version+=" $arg"
+     else
+       options+=" $arg"
+     fi
+   done
+
+   while getopts :u:p:f:d:t opt $options
+   do
+     case $opt in
+       u) pass_options="$pass_options -u $OPTARG" ;;
+       p) pass_options="$pass_options -p $OPTARG" ;;
+       r) pass_options="$pass_options -r $OPTARG" ;;
+       t) pass_options="$pass_options -t"   ;;
+       d) pass_options="$pass_options -d $OPTARG"  ;;
+       \?) echo "${MAGECIF[3]}Unkown option -$OPTARG${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
+       :) echo "${MAGECIF[3]}Option -$OPTARG requires an argument.${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
+     esac
+   done
+   
+   local db_name
+
+   for ver in $version
+   do 
+      # Running as subprocess to not break all version installs
+      db_name="${prefix}_${ver//./_}"
+      echo "${MAGECIF[2]}Installing magento version $ver into $magento_dir/${prefix}-${ver} directory and $db_name mysql DB${MAGECIF[0]}"
+      $script_bin install $magento_dir/${prefix}-${ver} $ver $db_name $pass_options > /dev/null 2>&1
+      if [ $? -ne 0 ]
+      then 
+        echo "${MAGECIF[3]}Failed to install $magento_dir/$prefix-$ver... Skipping${MAGECIF[0]}"
+      else
+	echo "${MAGECIF[1]}Installed...${MAGECIF[0]}"
+      fi
+   done
+}
+
 install_magento ()
+
 {
    local magento_dir=$1; local version=$2; local db_name=$3; shift 3
    local db_create; local db_user="root"; local db_pass=""; local sql_dump_file=""; local include_test_db
    local phpunit_local_xml; local opt; local sql_base_url; local db_cred
-   local download_dir="$script_dir/.tmp";
+   local download_dir="$(dirname $script_dir)/.tmp";
    
    while getopts :u:p:f:d:ct opt
    do
@@ -398,5 +518,7 @@ install-module)  install_module "$@" ;;
 update-modules)  update_modules "$@" ;;
 uninstall-module)  uninstall_module "$@" ;;
 uninstall)  uninstall_magento "$@" ;;
+install-multiple) install_multiple_magento "$@" ;;
+db-dump) dump_magento "$@" ;;
 *) show_usage ;;
 esac
