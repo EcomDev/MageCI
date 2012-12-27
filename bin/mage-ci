@@ -16,7 +16,7 @@
 # @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
 
 
-script_bin=$(realpath $0)
+script_bin=$(readlink -f $0)
 script=$(basename $script_bin)
 script_dir=$(dirname $script_bin)
 action=$1
