@@ -19,6 +19,12 @@ In the _require_ or alternatively in the _require-dev_ section, add the followin
 Usage
 -----
 
+### Running a batch of PHPUnit tests
+    $ mage-ci phpunit <directory> <OPTIONS> 
+        Runs unit tests for all phpunit.xml or phpunit.dist.xml files in <directory> or its subdirectories. 
+        <OPTIONS> will be passed directly to phpunit binary.
+
+
 ### Installing a particular Magento version
     $ bin/mage-ci install <magento_directory> <version> <db_name> <OPTIONS>
         Installs a Magento version to a specified destination
