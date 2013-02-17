@@ -101,7 +101,8 @@ run_phpunit ()
 
 
    local phpunit_version=$($phpunit_bin --version)
-   echo "${MAGECIF[2]}PHPUnit binary: $phpunit_bin\nVersion $phpunit_version${MAGECIF[0]}";
+   echo "${MAGECIF[2]}PHPUnit binary: $phpunit_bin"
+   echo "Version $phpunit_version${MAGECIF[0]}"
 
    # Check existance of phpunit at the system
    if [ $? -ne 0 ]
