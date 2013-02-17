@@ -11,7 +11,7 @@
 #
 # @category   EcomDev
 # @package    EcomDev/MageCI
-# @copyright  Copyright (c) 2012 EcomDev BV (http://www.ecomdev.org)
+# @copyright  Copyright (c) 2013 EcomDev BV (http://www.ecomdev.org)
 # @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
 # @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
 
@@ -75,6 +75,9 @@ ${MAGECIF[4]}$ mage-ci db-dump <directory> <prefix> <version1> ... <versionN> <O
 
 ${MAGECIF[4]}$ mage-ci phpunit <directory> <OPTIONS> ${MAGECIF[0]}
     Runs unit tests for all phpunit.xml or phpunit.dist.xml files in <directory> or its subdirectories. <OPTIONS> will be passed directly to phpunit.
+
+${MAGECIF[4]}$ mage-ci shell <magento_directory> <script_name> <OPTIONS> ${MAGECIF[0]}
+    Runs magento shell script with name <script_name> at <magento_directory>/shell directory with specified options.
 "
 }
 
@@ -82,6 +85,25 @@ show_usage ()
 {
    print_usage
    exit 1;
+}
+
+run_shell ()
+{
+   local magento_dir=$1
+   local current_dir=$(pwd)
+   local script_name=$2
+   shift 2;
+
+   # Check that first parameter is directory
+   if [ ! -d "$magento_dir/shell" ]
+   then
+      echo "${MAGECIF[3]}Magento shell directory is not found at $magento_dir/shell ${MAGECIF[0]}"
+      exit 1
+   fi
+
+   cd $magento_dir/shell
+   php -f $script_name -- ${@}
+   check_error_exit
 }
 
 run_phpunit ()
@@ -600,5 +622,6 @@ uninstall)  uninstall_magento "$@" ;;
 install-multiple) install_multiple_magento "$@" ;;
 db-dump) dump_magento "$@" ;;
 phpunit) run_phpunit "$@" ;;
+shell) run_shell "$@" ;;
 *) show_usage ;;
 esac
