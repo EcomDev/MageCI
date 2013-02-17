@@ -41,6 +41,7 @@ ${MAGECIF[4]}$ mage-ci install <magento_directory> <version> <db_name> <OPTIONS>
       -d  <download_dir>  Directory where all downloads are stored
       -u  <db_user>       DB Username
       -p  <db_pass>       DB Password
+      -b  <base_url>      If you'd like to have custom base url, just specify in this option
       -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)
       -f  <sql_dump_file> SQL dump file, if you'd like to preinstall some data and specfied -c option
 
@@ -86,14 +87,22 @@ show_usage ()
 run_phpunit ()
 {
    local test_dir=$1;
-   local phpunit_version=$(phpunit --version)
+   local current_dir=$(pwd);
+   local phpunit_bin="phpunit";
+
+   if [ -e "$current_dir/vendor/bin/phpunit" ]
+   then
+      phpunit_bin="$current_dir/vendor/bin/phpunit"
+   fi
+
+   local phpunit_version=$($phpunit_bin --version)
 
    # Check existance of phpunit at the system
    if [ $? -ne 0 ]
    then
       echo "${MAGECIF[3]}PHPUnit is not installed on your system, please visit http://phpunit.de/ for installation"
       exit 1;
-   fi;     
+   fi
 
    # Check that first parameter is directory
    if [ ! -d "$test_dir" -a -d tests ]
@@ -115,7 +124,7 @@ run_phpunit ()
    if [ -f phpunit.xml -o -f phpunit.xml.dist ]
    then
        echo "${MAGECIF[2]}Running test in $test_dir...${MAGECIF[0]}"
-      phpunit ${@}
+      $phpunit_bin ${@}
       check_error_exit
       exitCode=0
    else
@@ -125,7 +134,7 @@ run_phpunit ()
          then
             cd $dir;
             echo "${MAGECIF[2]}Running test in $dir...${MAGECIF[0]}"
-            phpunit ${@}
+            $phpunit_bin ${@}
             check_error_exit
             exitCode=0
          fi
@@ -252,9 +261,9 @@ install_magento ()
    local magento_dir=$1; local version=$2; local db_name=$3; shift 3
    local db_create; local db_user="root"; local db_pass=""; local sql_dump_file=""; local include_test_db
    local phpunit_local_xml; local opt; local sql_base_url; local db_cred
-   local download_dir="$(dirname $script_dir)/.tmp";
+   local base_url="http://magento.local/"; local download_dir="$(dirname $script_dir)/.tmp";
    
-   while getopts :u:r:p:f:d:ct opt
+   while getopts :u:r:p:f:b:d:ct opt
    do
      case $opt in
        u) db_user=$OPTARG       ;;
@@ -264,6 +273,7 @@ install_magento ()
        t) include_test_db="1"   ;;
        d) download_dir=$OPTARG  ;;
        r) sql_base_url=$OPTARG  ;;
+       b) base_url=$OPTARG      ;;
        \?) echo "${MAGECIF[3]}Unkown option -$OPTARG${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
        :) echo "${MAGECIF[3]}Option -$OPTARG requires an argument.${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
      esac
@@ -280,7 +290,7 @@ install_magento ()
 
    if [ ! -d "$magento_dir" ]
    then
-      echo "${MAGECIF[2]}Creating Magento directory: $magento_dir ...{MAGECIF[0]}"
+      echo "${MAGECIF[2]}Creating Magento directory: $magento_dir ...${MAGECIF[0]}"
       mkdir -p "$magento_dir"
    fi
  
@@ -376,8 +386,8 @@ install_magento ()
    php -f install.php -- --license_agreement_accepted yes \
   	  --locale en_US --timezone "America/Los_Angeles" --default_currency USD \
           --db_host localhost --db_name "$db_name" --db_user "$db_user" --db_pass "$db_pass" \
-          --url "http://magento.local/" --use_rewrites yes \
-          --use_secure no --secure_base_url "http://magento.local/" --use_secure_admin no \
+          --url "$base_url" --use_rewrites yes \
+          --use_secure no --secure_base_url "$base_url" --use_secure_admin no \
           --admin_lastname Owner --admin_firstname Store --admin_email "admin@example.com" \
           --admin_username admin --admin_password 123123test \
           --skip_url_validation yes --encryption_key "key"
@@ -404,10 +414,10 @@ install_magento ()
                 <use_rewrites>1</use_rewrites>
             </seo>
             <secure>
-                <base_url>http://magento.local/</base_url>
+                <base_url>${base_url}</base_url>
             </secure>
             <unsecure>
-                <base_url>http://magento.local/</base_url>
+                <base_url>${base_url}</base_url>
             </unsecure>
             <url>
                 <redirect_to_base>0</redirect_to_base>
