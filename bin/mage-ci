@@ -16,7 +16,7 @@
 # @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
 
 
-script_bin=$(readlink -f $0 || realpath $0)
+script_bin=$(realpath $0 || readlink -f $0)
 script=$(basename $script_bin)
 script_dir=$(dirname $script_bin)
 action=$1
@@ -120,8 +120,6 @@ run_phpunit ()
       phpunit_bin="$current_dir/bin/phpunit"
    fi
 
-
-
    local phpunit_version=$($phpunit_bin --version)
    echo "${MAGECIF[2]}PHPUnit binary: $phpunit_bin"
    echo "Version $phpunit_version${MAGECIF[0]}"
@@ -145,7 +143,7 @@ run_phpunit ()
       shift; # Correct test dir, so remove it from args list
    fi
 
-   test_dir=$(readlink -f $test_dir || realpath $test_dir);
+   test_dir=$(realpath $test_dir || readlink -f $test_dir);
    cd $test_dir
 
    local exitCode=1
