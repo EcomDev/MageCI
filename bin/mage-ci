@@ -488,7 +488,7 @@ install_module () {
 
    init_modman $magento_dir
 
-   if [[ $magento_module_source =~ ^git@ ]]
+   if [[ $magento_module_source =~ ^git@ || $magento_module_source =~ \.git$ ]]
    then
      magento_module=$(basename ${magento_module_source/.git//})
      check_error_exit
