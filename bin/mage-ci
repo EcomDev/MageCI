@@ -497,7 +497,7 @@ install_module () {
         check_error_exit
      fi
    else
-      $modman $magento_module update
+      $modman update $magento_module
       echo "${MAGECIF[2]}Updating module${MAGECIF[0]}"
    fi
 
