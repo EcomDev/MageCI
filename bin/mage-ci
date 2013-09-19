@@ -15,6 +15,24 @@
 # @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
 # @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
 
+OS=`uname -s`
+
+if [ "$OS" = "Darwin" ]
+then
+  # @see http://stackoverflow.com/a/18443300/283844
+  realpath() {
+    OURPWD=$PWD
+    cd "$(dirname "$1")"
+    LINK=$(readlink "$(basename "$1")")
+    while [ "$LINK" ]; do
+      cd "$(dirname "$LINK")"
+      LINK=$(readlink "$(basename "$1")")
+    done
+    REALPATH="$PWD/$(basename "$1")"
+    cd "$OURPWD"
+    echo "$REALPATH"
+  }
+fi
 
 script_bin=$(realpath $0 || readlink -f $0)
 script=$(basename $script_bin)
@@ -497,7 +515,7 @@ install_module () {
         check_error_exit
      fi
    else
-      $modman $magento_module update
+      $modman update $magento_module
       echo "${MAGECIF[2]}Updating module${MAGECIF[0]}"
    fi
 
