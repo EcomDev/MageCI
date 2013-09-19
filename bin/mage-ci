@@ -470,7 +470,7 @@ install_module () {
 
    init_modman $magento_dir
 
-   if [[ $magento_module_source =~ ^git@ ]]
+   if [[ $magento_module_source =~ ^git@ || $magento_module_source =~ \.git$ ]]
    then
      magento_module=$(basename ${magento_module_source/.git//})
      check_error_exit
@@ -485,7 +485,7 @@ install_module () {
 
    if [ ! -d ".modman/${magento_module}" ]
    then
-     if [[ $magento_module_source =~ ^git@ ]]
+     if [[ $magento_module_source =~ ^git@ || $magento_module_source =~ \.git$ ]]
         then
         echo "${MAGECIF[2]}Installing module from git repository: $magento_module_source${MAGECIF[0]}"
         $modman clone $magento_module_source
@@ -576,7 +576,7 @@ uninstall_module () {
 
    init_modman $magento_dir
 
-   if [[ $magento_module_source =~ ^git@ ]]
+   if [[ $magento_module_source =~ ^git@ || $magento_module_source =~ \.git$ ]]
    then
      magento_module=$(basename ${magento_module_source/.git//})
      check_error_exit
