@@ -63,7 +63,7 @@ ${MAGECIF[4]}$ mage-ci install <magento_directory> <version> <db_name> <OPTIONS>
       -r  <sql_base_url>  SQL dumps repository url for a particular Magento version (<sql_base_url>/<version>.sql.gz)
       -f  <sql_dump_file> SQL dump file, if you'd like to preinstall some data and specfied -c option
 
-${MAGECIF[4]}$ mage-ci install-module <magento_directory> <module_dir_or_vcs_url>${MAGECIF[0]}
+${MAGECIF[4]}$ mage-ci install-module <magento_directory> <module_dir_or_vcs_url> <modman_args>${MAGECIF[0]}
     Installs a Magento module with modman definition
 
 ${MAGECIF[4]}$ mage-ci update-modules <magento_directory>${MAGECIF[0]}
@@ -307,18 +307,21 @@ install_magento ()
    local db_create; local db_user="root"; local db_pass=""; local sql_dump_file=""; local include_test_db
    local phpunit_local_xml; local opt; local sql_base_url; local db_cred
    local base_url="http://magento.local/"; local download_dir="$(dirname $script_dir)/.tmp";
-   
-   while getopts :u:r:p:f:b:d:ct opt
+   local admin_password="123123test"; local clean_up=0;
+
+   while getopts :u:r:p:f:b:d:a:cto opt
    do
      case $opt in
-       u) db_user=$OPTARG       ;;
-       p) db_pass=$OPTARG       ;;
-       f) sql_dump_file=$OPTARG ;;
-       c) db_create="1"         ;;
-       t) include_test_db="1"   ;;
-       d) download_dir=$OPTARG  ;;
-       r) sql_base_url=$OPTARG  ;;
-       b) base_url=$OPTARG      ;;
+       u) db_user=$OPTARG        ;;
+       p) db_pass=$OPTARG        ;;
+       f) sql_dump_file=$OPTARG  ;;
+       c) db_create="1"          ;;
+       t) include_test_db="1"    ;;
+       d) download_dir=$OPTARG   ;;
+       r) sql_base_url=$OPTARG   ;;
+       b) base_url=$OPTARG       ;;
+       a) admin_password=$OPTARG ;;
+       o) clean_up="1"           ;; # New flag for cleaning up previous install
        \?) echo "${MAGECIF[3]}Unkown option -$OPTARG${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
        :) echo "${MAGECIF[3]}Option -$OPTARG requires an argument.${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
      esac
@@ -339,7 +342,7 @@ install_magento ()
       mkdir -p "$magento_dir"
    fi
  
-   if [[ ! $version =~ ^[0-9.]+$ ]]
+   if [[ ! $version =~ ^[a-z0-9.\-]+$ ]]
    then 
       echo "${MAGECIF[3]}Version should be specified: $version${MAGECIF[0]}"
       exit 1
@@ -387,7 +390,7 @@ install_magento ()
       if [ -f "${sql_dump_file}" ]
       then 
         if [[ $sql_dump_file =~ \.gz$ ]] 
-	then 
+	    then
            echo "${MAGECIF[2]}Uncompressing dump file...${MAGECIF[0]}"
            mkdir -p $download_dir/dump
            local dest_file=$(basename $sql_dump_file)
@@ -408,16 +411,16 @@ install_magento ()
       fi
    fi	
 
-   uninstall_magento $magento_dir
+   if [[ $clean_up == "1" ]]
+   then
+      uninstall_magento $magento_dir
+   fi
 
    echo "${MAGECIF[2]}Downloading Magento from URL: http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz${MAGECIF[0]}"
    wget -q --no-clobber -P $download_dir http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz
    check_error_exit;
    echo "${MAGECIF[2]}Unpacking magento installment...${MAGECIF[0]}"
-   tar -zxf $download_dir/magento-$version.tar.gz -C $download_dir
-   mv $download_dir/magento/* $magento_dir
-   mv $download_dir/magento/.ht* $magento_dir
-   rm -rf $download_dir/magento
+   tar -zxf $download_dir/magento-$version.tar.gz -C $magento_dir
    # Special case for PHP5.4 with installation process
    echo "${MAGECIF[2]}Applying pdo_mysql check fix...${MAGECIF[0]}"
    config_file="${magento_dir}/app/code/core/Mage/Install/etc/config.xml"
@@ -434,7 +437,7 @@ install_magento ()
           --url "$base_url" --use_rewrites yes \
           --use_secure no --secure_base_url "$base_url" --use_secure_admin no \
           --admin_lastname Owner --admin_firstname Store --admin_email "admin@example.com" \
-          --admin_username admin --admin_password 123123test \
+          --admin_username admin --admin_password "$admin_password" \
           --skip_url_validation yes --encryption_key "key"
 
    check_error_exit
@@ -483,8 +486,10 @@ LOCALXML
 install_module () {
    local magento_dir=$1
    local magento_module_source=$2
+   shift 2
    local magento_module
    local modman="${script_dir}/modman"
+   local modman_args="$@"
 
    init_modman $magento_dir
 
@@ -506,12 +511,12 @@ install_module () {
      if [[ $magento_module_source =~ ^git@ || $magento_module_source =~ \.git$ ]]
         then
         echo "${MAGECIF[2]}Installing module from git repository: $magento_module_source${MAGECIF[0]}"
-        $modman clone $magento_module_source
+        $modman clone $magento_module_source $modman_args
         check_error_exit
      elif [ -d "$magento_module_source" ]
      then
         echo "${MAGECIF[2]}Installing module from local directory: $magento_module_source${MAGECIF[0]}"
-        $modman link $magento_module_source
+        $modman link $magento_module_source $modman_args
         check_error_exit
      fi
    else
