@@ -420,7 +420,7 @@ install_magento ()
    wget -q --no-clobber -P $download_dir http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz
    check_error_exit;
    echo "${MAGECIF[2]}Unpacking magento installment...${MAGECIF[0]}"
-   tar -zxf $download_dir/magento-$version.tar.gz -C $magento_dir
+   tar -zxf $download_dir/magento-$version.tar.gz magento -C $magento_dir
    # Special case for PHP5.4 with installation process
    echo "${MAGECIF[2]}Applying pdo_mysql check fix...${MAGECIF[0]}"
    config_file="${magento_dir}/app/code/core/Mage/Install/etc/config.xml"
