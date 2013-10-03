@@ -40,6 +40,15 @@ script_dir=$(dirname $script_bin)
 action=$1
 shift;
 
+if [ -e $HOME/.mageci.conf ]
+then
+	. $HOME/.mageci.conf
+fi
+
+if [ -e $PWD/.mageci.conf ]
+then
+   . $PWD/.mageci.conf
+fi
 
 MAGECIF=(
    $(tput sgr0) # Reset char
