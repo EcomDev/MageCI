@@ -33,8 +33,11 @@ then
     echo "$REALPATH"
   }
 fi
-
-script_bin=$(realpath $0 || readlink -f $0)
+if hash realpath 2>/dev/null; then
+  script_bin=$(realpath $0)
+else
+  script_bin=$(readlink -f $0)
+fi
 script=$(basename $script_bin)
 script_dir=$(dirname $script_bin)
 action=$1
