@@ -14,7 +14,7 @@ In case you are not familiar with [Composer](http://getcomposer.org/), see [comp
 
 In the _require_ or alternatively in the _require-dev_ section, add the following dependency:
 
-    "ecomdev/mage-ci: "dev-master"
+    "ecomdev/mage-ci": "dev-master"
 
 Usage
 -----
