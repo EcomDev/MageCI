@@ -173,7 +173,12 @@ run_phpunit ()
       shift; # Correct test dir, so remove it from args list
    fi
 
-   test_dir=$(realpath $test_dir || readlink -f $test_dir);
+   if hash realpath 2>/dev/null; then
+     test_dir=$(realpath $test_dir)
+   else
+     test_dir=$(readlink -f $test_dir)
+   fi
+   
    cd $test_dir
 
    local exitCode=1
