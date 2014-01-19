@@ -15,6 +15,14 @@
 # @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
 # @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
 
+# Identify which PHP executable to run
+if [ "$PHP" = "" ]
+then
+  php_bin="php"
+else
+  php_bin=$PHP
+fi
+
 OS=`uname -s`
 
 if [ "$OS" = "Darwin" ]
@@ -108,6 +116,10 @@ ${MAGECIF[4]}$ mage-ci phpunit <directory> <OPTIONS> ${MAGECIF[0]}
 
 ${MAGECIF[4]}$ mage-ci shell <magento_directory> <script_name> <OPTIONS> ${MAGECIF[0]}
     Runs magento shell script with name <script_name> at <magento_directory>/shell directory with specified options.
+
+To specify a PHP binary to use when executing PHP commands, define the PHP environment variable with the invokation of the script. For example:
+
+${MAGECIF[4]}$ PHP=/path/to/bin/php mage-ci ...
 "
 }
 
@@ -132,7 +144,7 @@ run_shell ()
    fi
 
    cd $magento_dir/shell
-   php -f $script_name -- ${@}
+   $php_bin -f $script_name -- ${@}
    check_error_exit
 }
 
@@ -448,7 +460,7 @@ install_magento ()
 
    echo "${MAGECIF[2]}Installing Magento...${MAGECIF[0]}"
    cd $magento_dir
-   php -f install.php -- --license_agreement_accepted yes \
+   $php_bin -f install.php -- --license_agreement_accepted yes \
   	  --locale en_US --timezone "America/Los_Angeles" --default_currency USD \
           --db_host localhost --db_name "$db_name" --db_user "$db_user" --db_pass "$db_pass" \
           --url "$base_url" --use_rewrites yes \
