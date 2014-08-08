@@ -23,5 +23,5 @@ then
   mkdir -p $current_dir/bin
 fi
 
-wget -q -O $current_dir/bin/mage-ci https://raw.github.com/EcomDev/MageCI/master/bin/mage-ci --no-check-certificate
+wget -q -O $current_dir/bin/mage-ci https://raw.githubusercontent.com/EcomDev/MageCI/master/bin/mage-ci --no-check-certificate
 chmod +x $current_dir/bin/mage-ci
