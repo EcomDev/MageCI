@@ -565,7 +565,7 @@ init_modman () {
    if [ ! -f "$modman" ]
    then
      echo "${MAGECIF[2]}Installing modman...${MAGECIF[0]}"
-     curl -s -o "$modman" https://raw.github.com/colinmollenhour/modman/master/modman
+     curl -s -o "$modman" https://raw.githubusercontent.com/colinmollenhour/modman/master/modman
      check_error_exit
      chmod +x "$modman"
      check_error_exit
