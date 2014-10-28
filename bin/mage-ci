@@ -51,6 +51,8 @@ script_dir=$(dirname $script_bin)
 action=$1
 shift;
 
+MAGECI_TMP=$(dirname $script_dir)/.tmp
+
 if [ -e $HOME/.mageci.conf ]
 then
 	. $HOME/.mageci.conf
@@ -77,6 +79,7 @@ ${MAGECIF[4]}$ mage-ci install <magento_directory> <version> <db_name> <OPTIONS>
       -c                  Create databases flag
       -t                  Create test database flag (only in combination with -c option)
       -d  <download_dir>  Directory where all downloads are stored
+      -n                  By specifying this flag you skip downloading process of magento code base, useful for composer based installments 
       -u  <db_user>       DB Username
       -p  <db_pass>       DB Password
       -b  <base_url>      If you'd like to have custom base url, just specify in this option
@@ -117,7 +120,7 @@ ${MAGECIF[4]}$ mage-ci phpunit <directory> <OPTIONS> ${MAGECIF[0]}
 ${MAGECIF[4]}$ mage-ci shell <magento_directory> <script_name> <OPTIONS> ${MAGECIF[0]}
     Runs magento shell script with name <script_name> at <magento_directory>/shell directory with specified options.
 
-To specify a PHP binary to use when executing PHP commands, define the PHP environment variable with the invokation of the script. For example:
+To specify a PHP binary to use when executing PHP commands, define the PHP environment variable with the invocation of the script. For example:
 
 ${MAGECIF[4]}$ PHP=/path/to/bin/php mage-ci ...
 "
@@ -197,7 +200,7 @@ run_phpunit ()
 
    if [ -f phpunit.xml -o -f phpunit.xml.dist ]
    then
-       echo "${MAGECIF[2]}Running test in $test_dir...${MAGECIF[0]}"
+      echo "${MAGECIF[2]}Running test in $test_dir...${MAGECIF[0]}"
       $phpunit_bin ${@}
       check_error_exit
       exitCode=0
@@ -335,10 +338,10 @@ install_magento ()
    local magento_dir=$1; local version=$2; local db_name=$3; shift 3
    local db_create; local db_user="root"; local db_pass=""; local sql_dump_file=""; local include_test_db
    local phpunit_local_xml; local opt; local sql_base_url; local db_cred
-   local base_url="http://magento.local/"; local download_dir="$(dirname $script_dir)/.tmp";
-   local admin_password="123123test"; local clean_up=0;
+   local base_url="http://magento.local/"; local download_dir=$MAGECI_TMP;
+   local admin_password="123123test"; local clean_up=0; local no_download="0";
 
-   while getopts :u:r:p:f:b:d:a:cto opt
+   while getopts :u:r:p:f:b:d:a:cton opt
    do
      case $opt in
        u) db_user=$OPTARG        ;;
@@ -351,6 +354,7 @@ install_magento ()
        b) base_url=$OPTARG       ;;
        a) admin_password=$OPTARG ;;
        o) clean_up="1"           ;; # New flag for cleaning up previous install
+       n) no_download="1"        ;; # Flag for skipping download process of Magento code-base
        \?) echo "${MAGECIF[3]}Unkown option -$OPTARG${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
        :) echo "${MAGECIF[3]}Option -$OPTARG requires an argument.${MAGECIF[0]}" >&2; print_usage; exit 1 ;;
      esac
@@ -385,7 +389,7 @@ install_magento ()
 
    if [ ! -d "$download_dir" ]
    then
-     mkdir -p $magento_dir
+     mkdir -p $download_dir
      check_error_exit
    fi
 
@@ -445,18 +449,20 @@ install_magento ()
       uninstall_magento $magento_dir
    fi
 
-   echo "${MAGECIF[2]}Downloading Magento from URL: http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz${MAGECIF[0]}"
-   wget -q --no-clobber -P $download_dir http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz
-   check_error_exit;
-   echo "${MAGECIF[2]}Unpacking magento installment...${MAGECIF[0]}"
-   tar -zxf $download_dir/magento-$version.tar.gz -C $magento_dir --strip=1 magento
-   # Special case for PHP5.4 with installation process
-   echo "${MAGECIF[2]}Applying pdo_mysql check fix...${MAGECIF[0]}"
-   config_file="${magento_dir}/app/code/core/Mage/Install/etc/config.xml"
-   config_file_tmp="${config_file}.tmp"
-   cp $config_file $config_file_tmp
-   sed 's/<pdo_mysql\/>/<pdo_mysql>1<\/pdo_mysql>/' $config_file_tmp > $config_file
-
+   if [[ $no_download == "0" ]] 
+   then
+       echo "${MAGECIF[2]}Downloading Magento from URL: http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz${MAGECIF[0]}"
+       wget -q --no-clobber -P $download_dir http://www.magentocommerce.com/downloads/assets/$version/magento-$version.tar.gz
+       check_error_exit;
+       echo "${MAGECIF[2]}Unpacking magento installment...${MAGECIF[0]}"
+       tar -zxf $download_dir/magento-$version.tar.gz -C $magento_dir --strip=1 magento
+       # Special case for PHP5.4 with installation process
+       echo "${MAGECIF[2]}Applying pdo_mysql check fix...${MAGECIF[0]}"
+       config_file="${magento_dir}/app/code/core/Mage/Install/etc/config.xml"
+       config_file_tmp="${config_file}.tmp"
+       cp $config_file $config_file_tmp
+       sed 's/<pdo_mysql\/>/<pdo_mysql>1<\/pdo_mysql>/' $config_file_tmp > $config_file
+   fi
 
    echo "${MAGECIF[2]}Installing Magento...${MAGECIF[0]}"
    cd $magento_dir
